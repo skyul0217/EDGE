@@ -16,7 +16,6 @@ from EDGE import EDGE
 from data.audio_extraction.baseline_features import extract as baseline_extract
 from data.audio_extraction.jukebox_features import extract as juke_extract
 
-
 # sort filenames that look like songname_slice{number}.ext
 key_func = lambda x: int(os.path.splitext(x)[0].split("_")[-1].split("slice")[-1])
 
@@ -42,14 +41,9 @@ def test(opt):
     feature_func = juke_extract if opt.feature_type == "jukebox" else baseline_extract
     sample_length = opt.out_length
     sample_size = int(sample_length / 2.5) - 1
-    
-    if opt.lrc_path is not None:
-        for file in opt.lrc_path:
-            pass
 
     temp_dir_list = []
     all_cond = []
-    all_lyric = []
     all_filenames = []
     if opt.use_cached_features:
         print("Using precomputed features")
@@ -64,7 +58,6 @@ def test(opt):
             file_list = file_list[rand_idx : rand_idx + sample_size]
             juke_file_list = juke_file_list[rand_idx : rand_idx + sample_size]
             cond_list = [np.load(x) for x in juke_file_list]
-            
             all_filenames.append(file_list)
             all_cond.append(torch.from_numpy(np.array(cond_list)))
     else:
@@ -80,14 +73,12 @@ def test(opt):
                 temp_dir = TemporaryDirectory()
                 temp_dir_list.append(temp_dir)
                 dirname = temp_dir.name
-                
             # slice the audio file
             print(f"Slicing {wav_file}")
             slice_audio(wav_file, 2.5, 5.0, dirname)
             file_list = sorted(glob.glob(f"{dirname}/*.wav"), key=stringintkey)
             # randomly sample a chunk of length at most sample_size
             rand_idx = random.randint(0, len(file_list) - sample_size)
-            
             cond_list = []
             # generate juke representations
             print(f"Computing features for {wav_file}")
@@ -99,7 +90,6 @@ def test(opt):
                 # reps = jukemirlib.extract(
                 #     audio, layers=[66], downsample_target_rate=30
                 # )[66]
-                
                 reps, _ = feature_func(file)
                 # save reps
                 if opt.cache_features:

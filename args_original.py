@@ -94,11 +94,5 @@ def parse_test_opt():
         default="cached_features/",
         help="Where to save/load the features",
     )
-    parser.add_argument(
-        "--lrc_path",
-        type=str,
-        default="lrc/",
-        help="Where to load LRC files",
-    )
     opt = parser.parse_args()
     return opt
