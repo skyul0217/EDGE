@@ -13,8 +13,8 @@ __pycache__/
 *.pt
 *.npy
 *.zip
-cached_feature/
 custom_music/
+custom_feature/
 lrc/
 
 lyric/datasets/
