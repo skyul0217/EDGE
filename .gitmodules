@@ -1,0 +1,3 @@
+[submodule "lyric/MotionGPT"]
+	path = lyric/MotionGPT
+	url = https://github.com/skyul0217/MotionGPT.git

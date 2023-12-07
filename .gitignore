@@ -17,7 +17,7 @@ cached_feature/
 custom_music/
 lrc/
 
-/lyric/datasets/
-/lyric/checkpoints/
-/lyric/results/
-/lyric/deps/
+lyric/datasets/
+lyric/checkpoints/
+lyric/results/
+lyric/deps/

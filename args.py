@@ -40,6 +40,9 @@ def parse_train_opt():
     parser.add_argument(
         "--checkpoint", type=str, default="", help="trained checkpoint path (optional)"
     )
+    parser.add_argument(
+        "--learning_rate", type=float, default=0.0002, help="learning rate of EDGE model"
+    )
     opt = parser.parse_args()
     return opt
 
