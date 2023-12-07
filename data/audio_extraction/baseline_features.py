@@ -17,22 +17,24 @@ def _get_tempo(audio_name):
     """Get tempo (BPM) for a music by parsing music name."""
 
     # a lot of stuff, only take the 5th element
+    # DanceGenre_Situation_CamID_DancerID_MusicID_ChoreoID.wav
+    # MusicID: m{Genre}{Tempo}
     audio_name = audio_name.split("_")[4]
 
     assert len(audio_name) == 4
     if audio_name[0:3] in [
-        "mBR",
-        "mPO",
-        "mLO",
-        "mMH",
-        "mLH",
-        "mWA",
-        "mKR",
-        "mJS",
-        "mJB",
+        "mBR",  # Break
+        "mPO",  # Pop
+        "mLO",  # Lock
+        "mMH",  # Middle Hip-hop
+        "mLH",  # LA style Hip-hop
+        "mWA",  # House
+        "mKR",  # Krump
+        "mJS",  # Street Jazz
+        "mJB",  # Ballet Jazz
     ]:
         return int(audio_name[3]) * 10 + 80
-    elif audio_name[0:3] == "mHO":
+    elif audio_name[0:3] == "mHO":  # House
         return int(audio_name[3]) * 5 + 110
     else:
         assert False, audio_name
@@ -48,18 +50,23 @@ def extract(fpath, skip_completed=True, dest_dir="aist_baseline_feats"):
 
     data, _ = librosa.load(fpath, sr=SR)
 
+    # Strength envelope
     envelope = librosa.onset.onset_strength(y=data, sr=SR)  # (seq_len,)
+    # Mel-frequency cepstral coefficients
     mfcc = librosa.feature.mfcc(y=data, sr=SR, n_mfcc=20).T  # (seq_len, 20)
+    # Chroma
     chroma = librosa.feature.chroma_cens(
         y=data, sr=SR, hop_length=HOP_LENGTH, n_chroma=12
     ).T  # (seq_len, 12)
 
+    # Peaks from envelope 
     peak_idxs = librosa.onset.onset_detect(
         onset_envelope=envelope.flatten(), sr=SR, hop_length=HOP_LENGTH
     )
     peak_onehot = np.zeros_like(envelope, dtype=np.float32)
     peak_onehot[peak_idxs] = 1.0  # (seq_len,)
 
+    # Tempo
     try:
         start_bpm = _get_tempo(audio_name)
     except:
@@ -76,11 +83,12 @@ def extract(fpath, skip_completed=True, dest_dir="aist_baseline_feats"):
     beat_onehot = np.zeros_like(envelope, dtype=np.float32)
     beat_onehot[beat_idxs] = 1.0  # (seq_len,)
 
+    # [:, None]: Add one dimension (=unsqueeze)
     audio_feature = np.concatenate(
         [envelope[:, None], mfcc, chroma, peak_onehot[:, None], beat_onehot[:, None]],
         axis=-1,
     )
-
+    
     # chop to ensure exact shape
     audio_feature = audio_feature[:5 * FPS]
     assert (audio_feature.shape[0] - 5 * FPS) == 0, f"expected output to be ~5s, but was {audio_feature.shape[0] / FPS}"

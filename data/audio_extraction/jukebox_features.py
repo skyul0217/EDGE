@@ -6,11 +6,13 @@ import jukemirlib
 import numpy as np
 from tqdm import tqdm
 
+import gc
+
 FPS = 30
 LAYER = 66
 
 
-def extract(fpath, skip_completed=True, dest_dir="aist_juke_feats"):
+def extract(fpath, skip_completed=True, dest_dir="aist_juke_feats", multi_gpu_ids=None):
     os.makedirs(dest_dir, exist_ok=True)
     audio_name = Path(fpath).stem
     save_path = os.path.join(dest_dir, audio_name + ".npy")
@@ -19,7 +21,7 @@ def extract(fpath, skip_completed=True, dest_dir="aist_juke_feats"):
         return
 
     audio = jukemirlib.load_audio(fpath)
-    reps = jukemirlib.extract(audio, layers=[LAYER], downsample_target_rate=FPS)
+    reps = jukemirlib.extract(audio, layers=[LAYER], downsample_target_rate=FPS, multi_gpu_ids=multi_gpu_ids)
 
     #np.save(save_path, reps[LAYER])
     return reps[LAYER], save_path

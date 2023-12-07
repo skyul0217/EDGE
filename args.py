@@ -1,5 +1,7 @@
 import argparse
 
+def int_list(arg):
+    return list(map(int, arg.split(',')))
 
 def parse_train_opt():
     parser = argparse.ArgumentParser()
@@ -99,6 +101,12 @@ def parse_test_opt():
         type=str,
         default="lrc/",
         help="Where to load LRC files",
+    )
+    parser.add_argument(
+        "--gpu_ids",
+        type=int_list,
+        default=None,
+        help="Number of GPUs to distribute models",
     )
     opt = parser.parse_args()
     return opt

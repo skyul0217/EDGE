@@ -328,6 +328,7 @@ class DanceDecoder(nn.Module):
         
         self.final_layer = nn.Linear(latent_dim, output_feats)
 
+    # Classifier-free Guidance
     def guided_forward(self, x, cond_embed, times, guidance_weight):
         unc = self.forward(x, cond_embed, times, cond_drop_prob=1)
         conditioned = self.forward(x, cond_embed, times, cond_drop_prob=0)
@@ -349,6 +350,7 @@ class DanceDecoder(nn.Module):
         keep_mask_embed = rearrange(keep_mask, "b -> b 1 1")
         keep_mask_hidden = rearrange(keep_mask, "b -> b 1")
 
+        print(cond_embed.shape) 
         cond_tokens = self.cond_projection(cond_embed)
         # encode tokens
         cond_tokens = self.abs_pos_encoding(cond_tokens)

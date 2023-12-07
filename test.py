@@ -16,6 +16,8 @@ from EDGE import EDGE
 from data.audio_extraction.baseline_features import extract as baseline_extract
 from data.audio_extraction.jukebox_features import extract as juke_extract
 
+import lyric.lyric2motion as l2m
+import gc
 
 # sort filenames that look like songname_slice{number}.ext
 key_func = lambda x: int(os.path.splitext(x)[0].split("_")[-1].split("slice")[-1])
@@ -38,18 +40,30 @@ def stringintcmp_(a, b):
 stringintkey = cmp_to_key(stringintcmp_)
 
 
-def test(opt):
-    feature_func = juke_extract if opt.feature_type == "jukebox" else baseline_extract
+def test(opt):    
+    torch.backends.cudnn.benchmark = False
+    if opt.feature_type == "jukebox":
+        feature_func = juke_extract
+    elif opt.feature_type == "baseline":
+        feature_func = baseline_extract
+    else:
+        raise Exception("Please select 'jukebox' or 'baseline' for feature_type")
     sample_length = opt.out_length
     sample_size = int(sample_length / 2.5) - 1
     
+    """
+    lyric_list = []
     if opt.lrc_path is not None:
-        for file in opt.lrc_path:
-            pass
-
+        lrc_list = glob.glob(os.path.join(opt.lrc_path, "*.lrc"))
+        for lrc in lrc_list:
+            lyric = l2m.lyric_from_lrc(lrc)
+            keyword = l2m.extract_keyword_period(lyric)
+            transl = l2m.translate_lyric(keyword)
+            lyric_list.append(transl)
+    """
+    
     temp_dir_list = []
     all_cond = []
-    all_lyric = []
     all_filenames = []
     if opt.use_cached_features:
         print("Using precomputed features")
@@ -85,6 +99,7 @@ def test(opt):
             print(f"Slicing {wav_file}")
             slice_audio(wav_file, 2.5, 5.0, dirname)
             file_list = sorted(glob.glob(f"{dirname}/*.wav"), key=stringintkey)
+            print(f"File List Size: {len(file_list)}")
             # randomly sample a chunk of length at most sample_size
             rand_idx = random.randint(0, len(file_list) - sample_size)
             
