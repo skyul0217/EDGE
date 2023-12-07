@@ -13,6 +13,11 @@ __pycache__/
 *.pt
 *.npy
 *.zip
-cached_features/
+cached_feature/
 custom_music/
 lrc/
+
+/lyric/datasets/
+/lyric/checkpoints/
+/lyric/results/
+/lyric/deps/
