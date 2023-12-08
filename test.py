@@ -55,10 +55,17 @@ def test(opt):
     sample_length = opt.out_length
     sample_size = int(sample_length / STRIDE) - 1
     
+<<<<<<< HEAD
     """
     lyric_list = []
+=======
+    # Lyric Domain
+    print("LYRIC DOMAIN")
+    all_lyric = []
+>>>>>>> ae4bbe0 (Update 1208)
     if opt.lrc_path is not None:
         lrc_list = glob.glob(os.path.join(opt.lrc_path, "*.lrc"))
+<<<<<<< HEAD
         for lrc in lrc_list:
             lyric = l2m.lyric_from_lrc(lrc)
             keyword = l2m.extract_keyword_period(lyric)
@@ -66,11 +73,51 @@ def test(opt):
             lyric_list.append(transl)
     """
     
+=======
+        for lrc in tqdm(lrc_list):
+            song_name = os.path.splitext(lrc)[0].split("/")[-1]
+            song_file = os.path.join(opt.music_dir, song_name) + ".wav"
+            
+            # Extract translated keywords and timestamps
+            print("[1/2] Extracting keywords:")
+            lyric_lrc = l2m.lyric_from_lrc(lrc)
+            keyword = l2m.extract_keyword_period(lyric_lrc)
+            timestamps = l2m.translate_lyric(keyword)
+
+            # Convert timestamp into horizon index
+            print("[2/2] Converting into indices:")
+            audio, sr = librosa.load(song_file, sr=None)
+            start_idx = 0
+            idx = 0
+            window = int(HORIZON * sr)
+            stride_step = int(STRIDE * sr)
+            indices = list(range(0, len(audio), stride_step))
+            idx_pairs = [(indices[i], indices[i+1]) for i, _ in enumerate(indices[:-1])]
+            index_stamps = []
+            for time_start, time_end, lyric_line in timestamps:
+                time_start_idx, time_end_idx = int(time_start * sr), int(time_end * sr)
+                window_start_idx, window_end_idx = -1, -1
+                for idx, pair in enumerate(idx_pairs):
+                    if pair[0] <= time_start_idx and time_start_idx < pair[1]:
+                        window_start_idx = idx
+                    
+                    if pair[0] <= time_end_idx and time_end_idx < pair[1]:
+                        window_end_idx = idx
+                    
+                    if window_start_idx >= 0 and window_end_idx >= 0:
+                        break
+                assert window_start_idx >=0 and window_end_idx >= 0
+                index_stamps.append([window_start_idx, window_end_idx, lyric_line])
+            all_lyric.append(index_stamps)
+    
+    # Music Domain
+    print("\nMUSIC DOMAIN")
+>>>>>>> ae4bbe0 (Update 1208)
     temp_dir_list = []
     all_cond = []
     all_filenames = []
     if opt.use_cached_features:
-        print("Using precomputed features")
+        print("[1/1] Using precomputed features")
         # all subdirectories
         dir_list = glob.glob(os.path.join(opt.feature_cache_dir, "*/"))
         for dir in dir_list:
@@ -86,7 +133,7 @@ def test(opt):
             all_filenames.append(file_list)
             all_cond.append(torch.from_numpy(np.array(cond_list)))
     else:
-        print("Computing features for input music")
+        print("[1/3] Computing features for input music")
         for wav_file in glob.glob(os.path.join(opt.music_dir, "*.wav")):
             # create temp folder (or use the cache folder if specified)
             if opt.cache_features:
@@ -100,7 +147,7 @@ def test(opt):
                 dirname = temp_dir.name
                 
             # slice the audio file
-            print(f"Slicing {wav_file}")
+            print(f"[2/3] Slicing {wav_file}")
             slice_audio(wav_file, STRIDE, HORIZON, dirname)
             file_list = sorted(glob.glob(f"{dirname}/*.wav"), key=stringintkey)
             print(f"File List Size: {len(file_list)}")
@@ -109,7 +156,7 @@ def test(opt):
             
             cond_list = []
             # generate juke representations
-            print(f"Computing features for {wav_file}")
+            print(f"[3/3] Computing features for {wav_file}")
             for idx, file in enumerate(tqdm(file_list)):
                 # if not caching then only calculate for the interested range
                 if (not opt.cache_features) and (not (rand_idx <= idx < rand_idx + sample_size)):
@@ -140,9 +187,10 @@ def test(opt):
     if opt.save_motions:
         fk_out = opt.motion_save_dir
 
+    print("\nMOTION DOMAIN")
     print("Generating dances")
     for i in range(len(all_cond)):
-        data_tuple = None, all_cond[i], all_filenames[i]
+        data_tuple = None, all_cond[i], all_filenames[i], all_lyric[i]
         model.render_sample(
             data_tuple, "test", opt.render_dir, render_count=-1, fk_out=fk_out, render=not opt.no_render
         )
