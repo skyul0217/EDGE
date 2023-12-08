@@ -19,6 +19,8 @@ from data.audio_extraction.jukebox_features import extract as juke_extract
 import lyric.lyric2motion as l2m
 import gc
 
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
+
 # sort filenames that look like songname_slice{number}.ext
 key_func = lambda x: int(os.path.splitext(x)[0].split("_")[-1].split("slice")[-1])
 
@@ -39,6 +41,8 @@ def stringintcmp_(a, b):
 
 stringintkey = cmp_to_key(stringintcmp_)
 
+STRIDE = 2.5
+HORIZON = 5.0
 
 def test(opt):    
     torch.backends.cudnn.benchmark = False
@@ -49,7 +53,7 @@ def test(opt):
     else:
         raise Exception("Please select 'jukebox' or 'baseline' for feature_type")
     sample_length = opt.out_length
-    sample_size = int(sample_length / 2.5) - 1
+    sample_size = int(sample_length / STRIDE) - 1
     
     """
     lyric_list = []
@@ -97,7 +101,7 @@ def test(opt):
                 
             # slice the audio file
             print(f"Slicing {wav_file}")
-            slice_audio(wav_file, 2.5, 5.0, dirname)
+            slice_audio(wav_file, STRIDE, HORIZON, dirname)
             file_list = sorted(glob.glob(f"{dirname}/*.wav"), key=stringintkey)
             print(f"File List Size: {len(file_list)}")
             # randomly sample a chunk of length at most sample_size
