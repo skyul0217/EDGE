@@ -6,6 +6,7 @@ from tempfile import TemporaryDirectory
 import random
 
 import jukemirlib
+import librosa
 import numpy as np
 import torch
 from tqdm import tqdm
@@ -55,25 +56,12 @@ def test(opt):
     sample_length = opt.out_length
     sample_size = int(sample_length / STRIDE) - 1
     
-<<<<<<< HEAD
-    """
-    lyric_list = []
-=======
     # Lyric Domain
-    print("LYRIC DOMAIN")
+    print("[LYRIC DOMAIN]")
     all_lyric = []
->>>>>>> ae4bbe0 (Update 1208)
     if opt.lrc_path is not None:
+        # Load all the "*.lrc" files
         lrc_list = glob.glob(os.path.join(opt.lrc_path, "*.lrc"))
-<<<<<<< HEAD
-        for lrc in lrc_list:
-            lyric = l2m.lyric_from_lrc(lrc)
-            keyword = l2m.extract_keyword_period(lyric)
-            transl = l2m.translate_lyric(keyword)
-            lyric_list.append(transl)
-    """
-    
-=======
         for lrc in tqdm(lrc_list):
             song_name = os.path.splitext(lrc)[0].split("/")[-1]
             song_file = os.path.join(opt.music_dir, song_name) + ".wav"
@@ -82,11 +70,16 @@ def test(opt):
             print("[1/2] Extracting keywords:")
             lyric_lrc = l2m.lyric_from_lrc(lrc)
             keyword = l2m.extract_keyword_period(lyric_lrc)
-            timestamps = l2m.translate_lyric(keyword)
+            time_stamps = l2m.translate_lyric(keyword)
 
             # Convert timestamp into horizon index
             print("[2/2] Converting into indices:")
             audio, sr = librosa.load(song_file, sr=None)
+            index_stamps = [[int(time_start * sr), int(time_end * sr), lyric_line] for time_start, time_end, lyric_line in time_stamps]
+            generated_motions = l2m.generate_motion_lyric(song_name, index_stamps)
+            stamp_song = {song_name: [[idx_start, idx_end, lyric, motion] for (idx_start, idx_end, lyric), motion in zip(index_stamps, generated_motions)]}
+            """
+            # Adjust for the sample idx
             start_idx = 0
             idx = 0
             window = int(HORIZON * sr)
@@ -107,12 +100,13 @@ def test(opt):
                     if window_start_idx >= 0 and window_end_idx >= 0:
                         break
                 assert window_start_idx >=0 and window_end_idx >= 0
-                index_stamps.append([window_start_idx, window_end_idx, lyric_line])
-            all_lyric.append(index_stamps)
+                index_stamps.append({f"{song_name}": [window_start_idx, window_end_idx, lyric_line]})
+            """
+            all_lyric.append(stamp_song)
+        print(all_lyric)
     
     # Music Domain
-    print("\nMUSIC DOMAIN")
->>>>>>> ae4bbe0 (Update 1208)
+    print("\n[MUSIC DOMAIN]")
     temp_dir_list = []
     all_cond = []
     all_filenames = []
@@ -125,7 +119,9 @@ def test(opt):
             juke_file_list = sorted(glob.glob(f"{dir}/*.npy"), key=stringintkey)
             assert len(file_list) == len(juke_file_list)
             # random chunk after sanity check
-            rand_idx = random.randint(0, len(file_list) - sample_size)
+            # rand_idx = random.randint(0, len(file_list) - sample_size)
+            # Test for lyric combination
+            rand_idx = 30
             file_list = file_list[rand_idx : rand_idx + sample_size]
             juke_file_list = juke_file_list[rand_idx : rand_idx + sample_size]
             cond_list = [np.load(x) for x in juke_file_list]
@@ -135,9 +131,9 @@ def test(opt):
     else:
         print("[1/3] Computing features for input music")
         for wav_file in glob.glob(os.path.join(opt.music_dir, "*.wav")):
+            songname = os.path.splitext(os.path.basename(wav_file))[0]
             # create temp folder (or use the cache folder if specified)
             if opt.cache_features:
-                songname = os.path.splitext(os.path.basename(wav_file))[0]
                 save_dir = os.path.join(opt.feature_cache_dir, songname)
                 Path(save_dir).mkdir(parents=True, exist_ok=True)
                 dirname = save_dir
@@ -152,7 +148,9 @@ def test(opt):
             file_list = sorted(glob.glob(f"{dirname}/*.wav"), key=stringintkey)
             print(f"File List Size: {len(file_list)}")
             # randomly sample a chunk of length at most sample_size
-            rand_idx = random.randint(0, len(file_list) - sample_size)
+            # rand_idx = random.randint(0, len(file_list) - sample_size)
+            # -> Test for lyric combination
+            rand_idx = 30
             
             cond_list = []
             # generate juke representations
@@ -187,7 +185,7 @@ def test(opt):
     if opt.save_motions:
         fk_out = opt.motion_save_dir
 
-    print("\nMOTION DOMAIN")
+    print("\n[MOTION DOMAIN]")
     print("Generating dances")
     for i in range(len(all_cond)):
         data_tuple = None, all_cond[i], all_filenames[i], all_lyric[i]

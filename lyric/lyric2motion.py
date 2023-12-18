@@ -16,6 +16,10 @@ from transformers import MarianMTModel, MarianTokenizer
 
 # Import for Text-to-Motion Generation
 # import MotionGPT
+import subprocess
+from subprocess import Popen, PIPE
+import glob
+import re
 
 # Import LRC file
 def lyric_from_lrc(lrc_file, is_with_timeline=True):
@@ -175,7 +179,7 @@ def translate_lyric(lyrics, is_with_timeline=True):
         translated_lyrics.append(translated_text)
 
     if is_with_timeline:
-        translated_result = [[moment[0], moment[1], lyric] for moment, lyric in zip(moments, translated_lyrics)]
+        translated_result = [[moment[0], moment[1], f"Create a sequence of dance motions that visualizes the song lyric line: '{lyric}'"] for moment, lyric in zip(moments, translated_lyrics)]
     else:
         translated_result = translated_lyrics
 
@@ -183,17 +187,39 @@ def translate_lyric(lyrics, is_with_timeline=True):
         
     return translated_result
 
-def generate_motion_lyric(translation, is_with_timeline=True):
+def generate_motion_lyric(song_name, translation, is_with_timeline=True):
     if is_with_timeline:
-        pass
+        lyric_texts = [transl[2] for transl in translation]
+        lyric_text = "\n".join(lyric_texts)
+        with open(f"{song_name}_keyword.txt", "w") as f:
+            f.write(lyric_text)
+
+        command = "python3 demo.py "
+        command += "--cfg /root/NextLevel/main/framework/lyric/MotionGPT/configs/config_h3d_stage3.yaml "
+        command += f"--example /root/NextLevel/main/framework/lyric/{song_name}_keyword.txt "
+        command += f"--song_name {song_name}"
+        print(command)
+        p = Popen(command.split(" "), cwd="/root/NextLevel/main/framework/lyric/MotionGPT/")
+        p.communicate()
+
+        npy_motion_list = glob.glob(f"/root/NextLevel/main/framework/lyric/MotionGPT/results/{song_name}/*_out.npy")
+        npy_sorted_motion_list = sorted(npy_motion_list, key=lambda item: int(re.search(r'(\d+)_out\.npy$', item).group(1)) if re.search(r'(\d+)_out\.npy$', item) else 0)
+        print(npy_sorted_motion_list)
+        motion_list = []
+        for npy_motion in npy_sorted_motion_list:
+            motion = np.load(npy_motion)
+            print(str(npy_motion), motion.shape)
+            motion_list.append(motion)
+            
+        return motion_list
     else:
-        pass
-    return None
+        return None
 
 if __name__=="__main__":
     lyrics = lyric_from_lrc("./NewJeans_ETA.lrc")
     keywords = extract_keyword_period(lyrics, topk=10)
     translation = translate_lyric(keywords)
     for i in translation:
-        print(f"{i[0]:.2f} - {i[1]:.2f}: {i[2]}")
-    # motion = generate_motion_lyric(translation)
+        print(f"Create a sequence of movements that visualizes the song lyric: '{i[2]}'")
+    output = generate_motion_lyric("NewJeans_ETA", translation)
+    print(output)

@@ -554,7 +554,8 @@ class GaussianDiffusion(nn.Module):
         constraint=None,
         sound_folder="ood_sliced",
         start_point=None,
-        render=True
+        render=True,
+        lyric_stamp=None,
     ):
         if isinstance(shape, tuple):
             if mode == "inpaint":
@@ -589,6 +590,11 @@ class GaussianDiffusion(nn.Module):
             sample_contact = None
         # do the FK all at once
         b, s, c = samples.shape
+        """
+        b: Number of Samples, Sample Size (11)
+        s: Horizon Length (150 = 5 sec * 30 FPS)
+        c: Number of Joints (147 = 24 * 6 + 3)
+        """
         pos = samples[:, :, :3].to(cond.device)  # np.zeros((sample.shape[0], 3))
         q = samples[:, :, 3:].reshape(b, s, 24, 6)
         # go 6d to ax
@@ -596,6 +602,12 @@ class GaussianDiffusion(nn.Module):
 
         if mode == "long":
             b, s, c1, c2 = q.shape
+            """
+            b: Number of Samples, Sample Size (11)
+            s: Horizon Length (150 = 5 sec * 30 FPS)
+            c1: Number of Joints (24)
+            c2: ax (3)
+            """
             assert s % 2 == 0
             half = s // 2
             if b > 1:
@@ -646,9 +658,15 @@ class GaussianDiffusion(nn.Module):
             else:
                 full_pos = pos
                 full_q = q
+                
+            # Update Lyric-based Motion from MotionGPT (Added)
+            lyric_stamp = 0  
+                
             full_pose = (
                 self.smpl.forward(full_q, full_pos).detach().cpu().numpy()
             )  # b, s, 24, 3
+            
+            
             # squeeze the batch dimension away and render
             skeleton_render(
                 full_pose[0],
