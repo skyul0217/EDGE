@@ -204,7 +204,6 @@ def generate_motion_lyric(song_name, translation, is_with_timeline=True):
 
         npy_motion_list = glob.glob(f"/root/NextLevel/main/framework/lyric/MotionGPT/results/{song_name}/*_out.npy")
         npy_sorted_motion_list = sorted(npy_motion_list, key=lambda item: int(re.search(r'(\d+)_out\.npy$', item).group(1)) if re.search(r'(\d+)_out\.npy$', item) else 0)
-        print(npy_sorted_motion_list)
         motion_list = []
         for npy_motion in npy_sorted_motion_list:
             motion = np.load(npy_motion)

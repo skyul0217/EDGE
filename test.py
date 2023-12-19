@@ -44,6 +44,7 @@ stringintkey = cmp_to_key(stringintcmp_)
 
 STRIDE = 2.5
 HORIZON = 5.0
+FPS = 30
 
 def test(opt):    
     torch.backends.cudnn.benchmark = False
@@ -74,10 +75,12 @@ def test(opt):
 
             # Convert timestamp into horizon index
             print("[2/2] Converting into indices:")
-            audio, sr = librosa.load(song_file, sr=None)
-            index_stamps = [[int(time_start * sr), int(time_end * sr), lyric_line] for time_start, time_end, lyric_line in time_stamps]
+            for time_start, time_end, lyric_line in time_stamps:
+                print(time_start, time_end)
+            index_stamps = [[int(time_start * FPS), int(time_end * FPS), lyric_line] for time_start, time_end, lyric_line in time_stamps]
             generated_motions = l2m.generate_motion_lyric(song_name, index_stamps)
-            stamp_song = {song_name: [[idx_start, idx_end, lyric, motion] for (idx_start, idx_end, lyric), motion in zip(index_stamps, generated_motions)]}
+            print(generated_motions[0].shape)
+            stamp_song = [[song_name, idx_start, idx_start + int(motion.shape[1]), lyric, motion] for (idx_start, idx_end, lyric), motion in zip(index_stamps, generated_motions)]
             """
             # Adjust for the sample idx
             start_idx = 0
@@ -103,7 +106,7 @@ def test(opt):
                 index_stamps.append({f"{song_name}": [window_start_idx, window_end_idx, lyric_line]})
             """
             all_lyric.append(stamp_song)
-        print(all_lyric)
+        print([lyric[:-1] for lyric in all_lyric])
     
     # Music Domain
     print("\n[MUSIC DOMAIN]")
@@ -130,7 +133,7 @@ def test(opt):
             all_cond.append(torch.from_numpy(np.array(cond_list)))
     else:
         print("[1/3] Computing features for input music")
-        for wav_file in glob.glob(os.path.join(opt.music_dir, "*.wav")):
+        for i, wav_file in enumerate(glob.glob(os.path.join(opt.music_dir, "*.wav"))):
             songname = os.path.splitext(os.path.basename(wav_file))[0]
             # create temp folder (or use the cache folder if specified)
             if opt.cache_features:
@@ -146,11 +149,39 @@ def test(opt):
             print(f"[2/3] Slicing {wav_file}")
             slice_audio(wav_file, STRIDE, HORIZON, dirname)
             file_list = sorted(glob.glob(f"{dirname}/*.wav"), key=stringintkey)
-            print(f"File List Size: {len(file_list)}")
             # randomly sample a chunk of length at most sample_size
             # rand_idx = random.randint(0, len(file_list) - sample_size)
             # -> Test for lyric combination
             rand_idx = 30
+
+            idx_render_start = int(rand_idx * FPS * STRIDE)
+            idx_render_end = int((rand_idx + sample_size) * FPS * STRIDE)
+            print(f"Slicing between {idx_render_start} and {idx_render_end}")
+
+            print("Before")
+            print([comp[:-1] for comp in all_lyric[i]])
+
+            for key_bar in all_lyric[i]:
+                print(f"{int(key_bar[1])} vs {idx_render_start} / {int(key_bar[2])} vs {idx_render_end}")
+                if int(key_bar[2]) <= idx_render_start or int(key_bar[1]) >= idx_render_end:
+                    key_bar[1] = -1
+                    key_bar[2] = -1
+                elif int(key_bar[1]) <= idx_render_start and int(key_bar[2]) >= idx_render_end:
+                    key_bar[1] = 0
+                    key_bar[2] = int(sample_size * FPS * STRIDE)
+                elif int(key_bar[1]) <= idx_render_start and int(key_bar[2]) <= idx_render_end:
+                    key_bar[1] = 0
+                    key_bar[2] -= idx_render_start
+                elif int(key_bar[2]) >= idx_render_end and int(key_bar[1]) >= idx_render_start:
+                    key_bar[1] -= idx_render_start
+                    key_bar[2] = int(sample_size * FPS * STRIDE)
+                else:
+                    key_bar[1] -= idx_render_start
+                    key_bar[2] -= idx_render_start
+                print(f"-> {int(key_bar[1])} ({int(key_bar[1]) / (FPS)}) / {int(key_bar[2])} ({int(key_bar[2]) / (FPS)})")
+
+            print("After")
+            print([comp[:-1] for comp in all_lyric[i]])
             
             cond_list = []
             # generate juke representations

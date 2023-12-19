@@ -3,6 +3,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import librosa as lr
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
@@ -37,8 +39,8 @@ smpl_joints = [
     "relbow",  # 19
     "lwrist", # 20
     "rwrist", # 21
-    "lhand", # 22
-    "rhand", # 23
+    #"lhand", # 22
+    #"rhand", # 23
 ]
 
 smpl_parents = [
@@ -64,8 +66,8 @@ smpl_parents = [
     17,
     18,
     19,
-    20,
-    21,
+    #20,
+    #21,
 ]
 
 smpl_offsets = [
@@ -91,8 +93,8 @@ smpl_offsets = [
     [-0.26012748, -0.01436928, -0.03126873],
     [0.26570925, 0.01269811, -0.00737473],
     [-0.26910836, 0.00679372, -0.00602676],
-    [0.08669055, -0.01063603, -0.01559429],
-    [-0.0887537, -0.00865157, -0.01010708],
+    #[0.08669055, -0.01063603, -0.01559429],
+    #[-0.0887537, -0.00865157, -0.01010708],
 ]
 
 
@@ -172,6 +174,7 @@ def skeleton_render(
 ):
     if render:
         # generate the pose with FK
+        print("[*] Generating pose...")
         Path(out).mkdir(parents=True, exist_ok=True)
         num_steps = poses.shape[0]
         
@@ -183,9 +186,12 @@ def skeleton_render(
         d = -point.dot(normal)
         xx, yy = np.meshgrid(np.linspace(-1.5, 1.5, 2), np.linspace(-1.5, 1.5, 2))
         z = (-normal[0] * xx - normal[1] * yy - d) * 1.0 / normal[2]
+
         # plot the plane
+        print("[*] Plotting plane...")
         ax.plot_surface(xx, yy, z, zorder=-11, cmap=cm.twilight)
         # Create lines initially without data
+        print("[*] Creating lines initially...")
         lines = [
             ax.plot([], [], [], zorder=10, linewidth=1.5)[0]
             for _ in smpl_parents
@@ -197,6 +203,7 @@ def skeleton_render(
         axrange = 3
 
         # create contact labels
+        print("[*] Contact labels...")
         feet = poses[:, (7, 8, 10, 11)]
         feetv = np.zeros(feet.shape[:2])
         feetv[:-1] = np.linalg.norm(feet[1:] - feet[:-1], axis=-1)
@@ -206,6 +213,7 @@ def skeleton_render(
             contact = contact > 0.95
 
         # Creating the Animation object
+        print("[*] Create animation...")
         anim = animation.FuncAnimation(
             fig,
             plot_single_pose,
@@ -213,6 +221,7 @@ def skeleton_render(
             fargs=(poses, lines, ax, axrange, scat, contact),
             interval=1000 // 30,
         )
+        print("[*] RENDER DONE")
     if sound:
         # make a temporary directory to save the intermediate gif in
         if render:
@@ -251,6 +260,7 @@ def skeleton_render(
             out = os.system(
                 f"ffmpeg -loglevel error -stream_loop 0 -y -i {gifname} -i {audioname} -shortest -c:v libx264 -crf 26 -c:a aac -q:a 4 {outname}"
             )
+        print("[*] SOUND DONE")
     else:
         if render:
             # actually save the gif
@@ -309,7 +319,7 @@ class SMPLSkeleton:
         )
 
         # Parallelize along the batch and time dimensions
-        for i in range(self._offsets.shape[0]):
+        for i in tqdm(range(self._offsets.shape[0]), desc="Parallelize along the batch and time dimensions"):
             if self._parents[i] == -1:
                 positions_world.append(root_positions)
                 rotations_world.append(rotations[:, :, 0])

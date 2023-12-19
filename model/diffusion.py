@@ -597,6 +597,7 @@ class GaussianDiffusion(nn.Module):
         """
         pos = samples[:, :, :3].to(cond.device)  # np.zeros((sample.shape[0], 3))
         q = samples[:, :, 3:].reshape(b, s, 24, 6)
+        q = q[:, :, :-2, :]
         # go 6d to ax
         q = ax_from_6v(q).to(cond.device)
 
@@ -660,14 +661,46 @@ class GaussianDiffusion(nn.Module):
                 full_q = q
                 
             # Update Lyric-based Motion from MotionGPT (Added)
-            lyric_stamp = 0  
+            print(f"Full pos shape: {full_pos.shape}")
+            print(f"Full q shape: {full_q.shape}")
                 
+            print("Forwarding SMPL...")
             full_pose = (
                 self.smpl.forward(full_q, full_pos).detach().cpu().numpy()
             )  # b, s, 24, 3
+            # b, s, 22, 3 for integration with MotionGPT
             
+            print(f"Full pose shape: {full_pose.shape}")
             
+            for lyric in lyric_stamp:
+                if lyric[1] > 0 and lyric[2] > 0:
+                    interval = lyric[2] - lyric[1] + 1
+                    if interval % 2 == 1:
+                        interval -= 1
+                        lyric[2] -= 1
+                    half = interval // 2
+                    fade_music = torch.ones((1, interval, 22, 3)).to(cond.device)
+                    fade_lyric = torch.ones((1, interval, 22, 3)).to(cond.device)
+                    fade_music[:, :half, :, :] = torch.linspace(1, 0, half)[None, :, None, None].expand(-1, -1, 22, 3).to(
+                        cond.device
+                    )
+                    fade_music[:, half:, :, :] = torch.linspace(0, 1, half)[None, :, None, None].expand(-1, -1, 22, 3).to(
+                        cond.device
+                    )
+                    fade_lyric[:, :half, :, :] = torch.linspace(0, 1, half)[None, :, None, None].expand(-1, -1, 22, 3).to(
+                        cond.device
+                    )
+                    fade_lyric[:, half:, :, :] = torch.linspace(1, 0, half)[None, :, None, None].expand(-1, -1, 22, 3).to(
+                        cond.device
+                    )
+
+                    motion_music = torch.tensor(full_pose[:, lyric[1]:lyric[2]+1, :, :]).to(cond.device) * fade_music
+                    motion_lyric = torch.tensor(lyric[4])[:, :interval, :, :].to(cond.device) * fade_lyric
+                    
+                    full_pose[:, lyric[1]:lyric[2]+1, :, :] = (motion_music + motion_lyric).cpu().numpy()
+
             # squeeze the batch dimension away and render
+            print("Rendering skeleton...")
             skeleton_render(
                 full_pose[0],
                 epoch=f"{epoch}",
@@ -683,7 +716,8 @@ class GaussianDiffusion(nn.Module):
                 Path(fk_out).mkdir(parents=True, exist_ok=True)
                 pickle.dump(
                     {
-                        "smpl_poses": full_q.squeeze(0).reshape((-1, 72)).cpu().numpy(),
+                        #"smpl_poses": full_q.squeeze(0).reshape((-1, 72)).cpu().numpy(),
+                        "smpl_poses": full_q.squeeze(0).reshape((-1, 66)).cpu().numpy(),
                         "smpl_trans": full_pos.squeeze(0).cpu().numpy(),
                         "full_pose": full_pose[0],
                     },
@@ -691,6 +725,7 @@ class GaussianDiffusion(nn.Module):
                 )
             return
 
+        print("Goto inner")
         poses = self.smpl.forward(q, pos).detach().cpu().numpy()
         sample_contact = (
             sample_contact.detach().cpu().numpy()

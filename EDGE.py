@@ -268,9 +268,10 @@ class EDGE:
     def render_sample(
         self, data_tuple, label, render_dir, render_count=-1, fk_out=None, render=True
     ):
-        _, cond, wavname, lyric_stamp = data_tuple
+        _, cond, wavname, lyric_stamps = data_tuple
         """
         condition: (11, 150, 4800)
+        lyric_stamp: [songname, start idx, end idx, lyric, motion]
         """
         assert len(cond.shape) == 3
         if render_count < 0:
@@ -288,5 +289,5 @@ class EDGE:
             mode="long",
             fk_out=fk_out,
             render=render,
-            lyric_stamp=lyric_stamp
+            lyric_stamp=lyric_stamps
         )

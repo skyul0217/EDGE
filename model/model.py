@@ -350,7 +350,6 @@ class DanceDecoder(nn.Module):
         keep_mask_embed = rearrange(keep_mask, "b -> b 1 1")
         keep_mask_hidden = rearrange(keep_mask, "b -> b 1")
 
-        print(cond_embed.shape) 
         cond_tokens = self.cond_projection(cond_embed)
         # encode tokens
         cond_tokens = self.abs_pos_encoding(cond_tokens)
