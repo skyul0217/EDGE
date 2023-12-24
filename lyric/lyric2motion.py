@@ -191,7 +191,7 @@ def generate_motion_lyric(song_name, translation, is_with_timeline=True):
     if is_with_timeline:
         lyric_texts = [transl[2] for transl in translation]
         lyric_text = "\n".join(lyric_texts)
-        with open(f"{song_name}_keyword.txt", "w") as f:
+        with open(f"/root/NextLevel/main/framework/lyric/{song_name}_keyword.txt", "w") as f:
             f.write(lyric_text)
 
         command = "python3 demo.py "

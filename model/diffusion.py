@@ -695,8 +695,12 @@ class GaussianDiffusion(nn.Module):
                     )
 
                     motion_music = torch.tensor(full_pose[:, lyric[1]:lyric[2]+1, :, :]).to(cond.device) * fade_music
-                    motion_lyric = torch.tensor(lyric[4])[:, :interval, :, :].to(cond.device) * fade_lyric
                     
+                    rot_matrix = torch.tensor([[0., 0., -1.], [1., 0., 0.], [0., 1., 0.]]).to(cond.device)
+                    motion_lyric_original = torch.tensor(lyric[4])[:, :interval, :, :].to(cond.device) * fade_lyric
+                    motion_lyric = torch.matmul(motion_lyric_original, rot_matrix.T)
+                    print(motion_lyric.shape)
+                    print(motion_music.shape)
                     full_pose[:, lyric[1]:lyric[2]+1, :, :] = (motion_music + motion_lyric).cpu().numpy()
 
             # squeeze the batch dimension away and render

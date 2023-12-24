@@ -70,7 +70,7 @@ def test(opt):
             # Extract translated keywords and timestamps
             print("[1/2] Extracting keywords:")
             lyric_lrc = l2m.lyric_from_lrc(lrc)
-            keyword = l2m.extract_keyword_period(lyric_lrc)
+            keyword = l2m.extract_keyword_period(lyric_lrc, topk=5)
             time_stamps = l2m.translate_lyric(keyword)
 
             # Convert timestamp into horizon index
@@ -78,6 +78,7 @@ def test(opt):
             for time_start, time_end, lyric_line in time_stamps:
                 print(time_start, time_end)
             index_stamps = [[int(time_start * FPS), int(time_end * FPS), lyric_line] for time_start, time_end, lyric_line in time_stamps]
+            print(f"Song: {song_name}")
             generated_motions = l2m.generate_motion_lyric(song_name, index_stamps)
             print(generated_motions[0].shape)
             stamp_song = [[song_name, idx_start, idx_start + int(motion.shape[1]), lyric, motion] for (idx_start, idx_end, lyric), motion in zip(index_stamps, generated_motions)]
@@ -122,9 +123,10 @@ def test(opt):
             juke_file_list = sorted(glob.glob(f"{dir}/*.npy"), key=stringintkey)
             assert len(file_list) == len(juke_file_list)
             # random chunk after sanity check
-            # rand_idx = random.randint(0, len(file_list) - sample_size)
+            rand_idx = random.randint(0, len(file_list) - sample_size)
             # Test for lyric combination
-            rand_idx = 30
+            print(f"File List Size: {len(file_list)}")
+            # rand_idx = 15
             file_list = file_list[rand_idx : rand_idx + sample_size]
             juke_file_list = juke_file_list[rand_idx : rand_idx + sample_size]
             cond_list = [np.load(x) for x in juke_file_list]
@@ -150,19 +152,16 @@ def test(opt):
             slice_audio(wav_file, STRIDE, HORIZON, dirname)
             file_list = sorted(glob.glob(f"{dirname}/*.wav"), key=stringintkey)
             # randomly sample a chunk of length at most sample_size
-            # rand_idx = random.randint(0, len(file_list) - sample_size)
+            rand_idx = random.randint(0, len(file_list) - sample_size)
+            # rand_idx = 15
             # -> Test for lyric combination
-            rand_idx = 30
+            print(f"File List Size: {len(file_list)}")
 
             idx_render_start = int(rand_idx * FPS * STRIDE)
             idx_render_end = int((rand_idx + sample_size) * FPS * STRIDE)
             print(f"Slicing between {idx_render_start} and {idx_render_end}")
 
-            print("Before")
-            print([comp[:-1] for comp in all_lyric[i]])
-
             for key_bar in all_lyric[i]:
-                print(f"{int(key_bar[1])} vs {idx_render_start} / {int(key_bar[2])} vs {idx_render_end}")
                 if int(key_bar[2]) <= idx_render_start or int(key_bar[1]) >= idx_render_end:
                     key_bar[1] = -1
                     key_bar[2] = -1
@@ -178,9 +177,7 @@ def test(opt):
                 else:
                     key_bar[1] -= idx_render_start
                     key_bar[2] -= idx_render_start
-                print(f"-> {int(key_bar[1])} ({int(key_bar[1]) / (FPS)}) / {int(key_bar[2])} ({int(key_bar[2]) / (FPS)})")
 
-            print("After")
             print([comp[:-1] for comp in all_lyric[i]])
             
             cond_list = []
